@@ -1,0 +1,296 @@
+---
+title: "How have varying patterns of carbon intensity relative to GDP growth emerged across nations, and what implications exist for future sustainable development pathways?"
+subtitle: "DATA1001 Project 2"
+author: "SID 540632608"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    toc-location: right
+editor: visual
+---
+
+# Client Bio
+
+![](https://static.pib.gov.in/WriteReadData/userfiles/image/image0010OYE.jpg){fig-alt="Shri Bhupender Yadav" fig-align="left" width="250"}
+
+**Client**: Shri Bhupender Yadav, Hon’ble Minister of Environment, Forest and Climate Change, Government of India (https://moef.gov.in/cabinet-minister)
+
+**Bio**: He leads India's government’s ministry that oversees climate change strategy, biodiversity conservation, and pollution control. His ministry is responsible for guiding India's progress towards sustainable development.
+
+# Recommendation
+
+India should learn a **cautionary** lesson from China: rapid CO2 intensity reduction with economic growth is possible (*Evidence-1.1 & 1.2*) but comes at the cost of CO2 emissions climbing (*Evidence-2*).
+
+India, unlike China, should prioritize economic growth through **green energy** and **digital products** (like AI and robotics) that make better use of resources.
+
+# Evidence
+
+```{r}
+#| message: false
+#| warning: false
+# Load required libraries
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+
+# Read the CO2 data
+data <- read.csv("C:\\Users\\apurv\\OneDrive\\Desktop\\DATA1001 qmd files\\owid-co2-data.csv")
+
+# Find the maximum year in the dataset
+max_year <- max(data$year, na.rm = TRUE)
+
+# Define country groupings to exclude
+excluded_groups <- c(
+  "World", "Non-OECD (GCP)", "Asia", "Asia (GCP)", "High-income countries",
+  "Upper-middle-income countries", "OECD (GCP)", "North America",
+  "Asia (excl. China and India)", "North America (GCP)", "Europe",
+  "Europe (GCP)", "European Union (28)", "Lower-middle-income countries",
+  "European Union (27)", "Europe (excl. EU-27)", "Middle East (GCP)",
+  "Europe (excl. EU-28)", "Africa", "Africa (GCP)",
+  "North America (excl. USA)", "South America", "South America (GCP)",
+  "Oceania", "Oceania (GCP)", "Central America (GCP)", 
+  "International shipping", "International aviation", 
+  "Low-income countries", "Kuwaiti Oil Fires (GCP)", "Ryukyu Islands (GCP)",
+  "Christmas Island", "Antarctica"
+)
+```
+
+This analysis is based on the ***Our World in Data CO2 and Greenhouse Gas Emissions*** dataset, which contains information related to CO2 and GHG emissions by countries/group of countries from 1750 to 2023 and the impact of these emissions on the global temperature.
+
+## 1.1 CO2 intensity of all countries with focus on India and China
+
+```{r}
+#| message: false
+#| warning: false
+
+filtered_data <- subset(data, 
+                       year > (max_year - 25) & 
+                       !country %in% excluded_groups & 
+                       !is.na(gdp) & 
+                       !is.na(co2_per_gdp))
+
+# Create a new column for the year as a factor (for coloring points)
+filtered_data$year_factor <- as.factor(filtered_data$year)
+
+# Create a new column for highlighting India and China
+filtered_data$highlight <- ifelse(filtered_data$country %in% c("India", "China"), 
+                                 filtered_data$country, 
+                                 "Other")
+
+# Create the scatter plot with ggplot
+gdp_vs_intensity_plot <- ggplot(filtered_data, 
+                               aes(x = gdp, 
+                                   y = co2_per_gdp, 
+                                   color = highlight, 
+                                   text = paste("Country:", country, 
+                                               "<br>Year:", year, 
+                                               "<br>GDP:", format(gdp, big.mark = ","), 
+                                               "<br>CO2 per GDP:", round(co2_per_gdp, 4)))) +
+  geom_point(alpha = 0.7) +
+  scale_x_log10(labels = scales::comma) +  # Log scale for GDP as it varies widely
+  scale_color_manual(values = c("China" = "#b5b100", "India" = "#00ab8e", "Other" = "gray")) +
+  theme_minimal() +
+  labs(title = "GDP vs Carbon Intensity (CO2 per GDP) Past 25 years (1999-2023)",
+       x = "GDP (international-$)",
+       y = "CO2 per GDP (kg per $)",
+       color = "Country") +
+  theme(legend.position = "right")
+
+# Convert to an interactive plotly plot
+ggplotly(gdp_vs_intensity_plot,  tooltip = "text")
+```
+
+In the scatter plot showing CO2 intensities of various countries, India and China stand out as the ideal countries to compare. Both of these countries have similar GDPs. However, China has significantly reduced its CO2 intensity while increasing its GDP. Meanwhile, India has increased its GDP, but was not successful in reducing its CO2 intensity as drastically as China. This is made clearer by the trend lines shown below.
+
+## 1.2 CO2 Intensity Trend Line comparing China and India
+
+```{r}
+#| message: false
+#| warning: false
+#| fig-width: 12
+
+
+# Filter data for China and India over the past 25 years
+china_india_data <- subset(data, 
+                          country %in% c("China", "India") & 
+                          year > (max_year - 25) & 
+                          !is.na(co2_per_gdp))
+
+# Create a subset with only the first and last years
+min_year <- min(china_india_data$year)
+max_year <- max(china_india_data$year)
+endpoint_data <- subset(china_india_data, year == min_year | year == max_year)
+
+# Combined chart showing both trend lines and endpoint emphasis
+ggplot() +
+  # Full trend lines
+  geom_line(data = china_india_data,
+            aes(x = year, y = co2_per_gdp, color = country),
+            linewidth = 1.2) +
+  # Emphasized points at start and end
+  geom_point(data = endpoint_data,
+             aes(x = year, y = co2_per_gdp, color = country),
+             linewidth = 4) +
+  # Labels for the endpoint values
+  geom_text(data = endpoint_data,
+            aes(x = year, y = co2_per_gdp, 
+                color = country, 
+                label = round(co2_per_gdp, 3)),
+            hjust = -0.3,  
+            vjust = -0.5) +
+  # Custom colors
+  scale_color_manual(values = c("China" = "#b5b100", "India" = "#00ab8e")) +
+  # Add percentage change annotation
+  geom_text(data = subset(endpoint_data, year == max_year),
+            aes(x = year, y = co2_per_gdp, 
+                label = paste0(round((co2_per_gdp / 
+                  subset(endpoint_data, 
+                         country == country & 
+                         year == min_year)$co2_per_gdp - 1) * 100, 1), "%")),
+            hjust = -0.3, 
+            vjust = 1.5,
+            fontface = "bold") +
+  # Theme and labels
+  theme_minimal() +
+  labs(title = "Carbon Intensity Trends: China vs. India (1999-2023)",
+       subtitle = "Line chart showing full trend with start and end values highlighted",
+       x = "Year", 
+       y = "CO2 per GDP (kg per $)",
+       color = "Country") +
+  theme(legend.position = "bottom",
+        plot.title = element_text(size = 14, face = "bold"),
+        plot.subtitle = element_text(size = 11)) + coord_cartesian(clip = "off")
+```
+
+While India maintained a lower absolute carbon intensity (CO2 per GDP) than China throughout 1999-2023 (ending at 0.27 kg/\$ vs 0.421 kg/\$ ), China achieved a much faster rate of intensity reduction (-34% vs. India's -23.7%). Chart 1 and Chart 2 clearly show China's steeper downward decline, particularly after 2011, while India's decline was more gradual. This initially suggests China found effective ways to make its GDP grow while emitting less CO2. The work by Wang et al. (2018) supports this finding. Their findings indicate periods where a decline in China’s CO2 intensity was seen as the economy expanded (Fu et al., 2024).
+
+## 2. The Hidden Cost – Absolute Emissions
+
+```{r}
+#| message: false
+#| warning: false
+#| fig-width: 12
+
+# Filter data for China over the past 25 years WITH non-NA values for both columns
+china_data <- subset(data, 
+                    country == "China" & 
+                    year > (max_year - 25) & 
+                    !is.na(temperature_change_from_co2) &
+                    !is.na(co2_per_capita))
+
+# Create subsets for start and end points
+min_year <- min(china_data$year, na.rm = TRUE)
+max_year <- max(china_data$year, na.rm = TRUE)
+endpoints <- subset(china_data, year %in% c(min_year, max_year))
+
+# Calculate the scaling factor for secondary y-axis
+# This ensures proper alignment of the two metrics
+scale_factor <- max(china_data$co2_per_capita, na.rm = TRUE) / 
+                max(china_data$temperature_change_from_co2, na.rm = TRUE)
+
+ggplot(china_data, aes(x = year)) +
+    # Temperature change line (primary y-axis)
+    geom_line(aes(y = temperature_change_from_co2, color = "Temperature Change"), 
+              size = 1) +
+    # GHG emissions line (secondary y-axis)
+    geom_line(aes(y = co2_per_capita / scale_factor, color = "CO2 Emissions Per Capita"), 
+              size = 1) +
+    # Add points for endpoints of temperature change
+    geom_point(data = endpoints, 
+               aes(y = temperature_change_from_co2, color = "Temperature Change"), 
+               size = 3) +
+    # Add points for endpoints of GHG emissions
+    geom_point(data = endpoints, 
+               aes(y = co2_per_capita / scale_factor, color = "CO2 Emissions Per Capita"), 
+               size = 3) +
+    # Add value labels for the endpoints
+    geom_text(data = endpoints, 
+              aes(y = temperature_change_from_co2, 
+                  label = round(temperature_change_from_co2, 3)),
+              hjust = -0.3, vjust = -0.5, size = 3) +
+    geom_text(data = endpoints, 
+              aes(y = co2_per_capita / scale_factor, 
+                  label = round(co2_per_capita, 3)),
+              hjust = -0.3, vjust = 1.5, size = 3) +
+    # Primary y-axis (Temperature Change)
+    scale_y_continuous(name = "Temperature Change (°C)",
+                       sec.axis = sec_axis(~ . * scale_factor, 
+                                           name = "CO2 Per Capita (tonnes per person)")) +
+    scale_x_continuous(name = "Year", breaks = seq(min_year, max_year, by = 5)) +
+    # Set custom colors
+    scale_color_manual(values = c("Temperature Change" = "#9ACD32", 
+                                  "CO2 Emissions Per Capita" = "#DAA520")) +
+    # Add titles and theme
+    labs(title = "China: Temperature Change and CO2 Emissions Per Capita",
+         subtitle = "Data from 1999 TO 2023",
+         color = "Metric") +
+    theme_minimal() +
+    theme(
+        legend.position = "bottom",
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold", size = 14),
+        axis.title = element_text(face = "bold")
+    ) + coord_cartesian(clip = "off")
+
+```
+
+However, examining China's specific trends reveals a hidden point. During the same period its carbon intensity was falling, China's CO2 per capita emissions tripled (from \~2.7 tonnes in 1999 to \~8.4 tonnes in 2023). This means China's reduction in CO2/GDP was achieved by growing its GDP (the denominator) much faster than its CO2 emissions (the numerator), not by reducing overall emissions. Absolute CO2 emissions surged, contributing to the global mean surface temperature change from CO2 (which also rose sharply from 0.051°C to 0.142°C in the chart). This aligns with Global Carbon Budget 2023 (Friedlingstein, 2023), which mentions China's rapid industrialization heavily reliant on coal, and identifies China as the largest emitter of greenhouse gases.
+
+## Limitations
+
+-   Only CO2 data is used in this report. While CO2 is the dominant GHG, this excludes other GHGs (like methane, nitrous oxide).
+
+-   Only data till 2023 is present. More recent conclusions cannot be derived.
+
+# Ethics Statement
+
+I maintained the Shared Value of Professionalism by responsibly using statistical knowledge to give an informed decision to my client. I obeyed the Ethical Principle of Maintaining Confidence in Statistics by ensuring data-driven results and identifying the data’s limitations.
+
+# AI usage statement
+
+**AI Name and Version:** Claude 3.7 Sonnet
+
+-   **Prompt 1:**
+
+**Date of Use:** 13th May 2025
+
+**Link:** Claude. (2024). Claude.ai. https://claude.ai/share/9197125e-3b0d-40a2-87d9-7189858f5aac
+
+**Summary:** When asked “How do I combine these 2 graphs into one graph with 2 y-axes”, Claude gave me R code with two scaled y-axes using ggplot. This is used in Evidence 2.
+
+-   **Prompt 2:**
+
+**Date of Use:** 13th May 2025
+
+**Link:** Claude. (2024). Claude.ai. https://claude.ai/share/9197125e-3b0d-40a2-87d9-7189858f5aac
+
+**Summary:** When asked “How to scale GDP since it varies widely and how to highlight only India and China”, Claude gave me the solution to use log to scale the GDP and use scale_color_manual for highlighting India and China. This is used in Evidence 1.1
+
+-   **Prompt 3:**
+
+**Date of Use:** 13th May 2025
+
+**Link:** Claude. (2024). Claude.ai. https://claude.ai/share/9197125e-3b0d-40a2-87d9-7189858f5aac Summary: When asked “ How to insert percentage decrease in trend lines”, Claude gave me a compact percentage calculation and inserted it into my existing graph using geom_point(). This is used in Evidence 1.2
+
+# Acknowledgements
+
+## External Evidence
+
+Friedlingstein, P. (2023). Global Carbon Budget 2023. Earth System Science Data, 15(12), 5301–5369. https://doi.org/10.5194/essd-15-5301-2023
+
+Fu, J., Wang, F., & Guo, J. (2024). Decoupling Economic Growth from Carbon Emissions in the Yangtze River Economic Belt of China: From the Coordinated Regional Development Perspective. Sustainability, 16(6), 2477–2477. https://doi.org/10.3390/su16062477
+
+## Drop-in Sessions
+
+Drop in session on 14th May at 3 pm helped me curate my graphs and report better
+
+## Other Resources
+
+Hover. (2025). Plotly.com. https://plotly.com/ggplot2/hover-text-and-formatting/
+
+Points — geom_point. (n.d.). Ggplot2.Tidyverse.org. https://ggplot2.tidyverse.org/reference/geom_point.html
+
+Bobbitt, Z. (2022, August 11). How to Use hjust & vjust to Move Elements in ggplot2. Statology. https://www.statology.org/hjust-vjust-ggplot2/
